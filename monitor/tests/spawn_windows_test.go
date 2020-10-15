@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	logging "github.com/codemodify/systemkit-logging"
+	logging "github.com/remoteit/systemkit-logging"
 
-	"github.com/codemodify/systemkit-processes/contracts"
-	procMon "github.com/codemodify/systemkit-processes/monitor"
+	"github.com/remoteit/systemkit-processes/contracts"
+	procMon "github.com/remoteit/systemkit-processes/monitor"
 )
 
 func TestSpawnWindows(t *testing.T) {

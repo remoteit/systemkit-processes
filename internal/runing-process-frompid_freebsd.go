@@ -5,7 +5,7 @@ package internal
 import (
 	"unsafe"
 
-	"github.com/codemodify/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 func processByPID(pid int) (contracts.RuningProcess, error) {

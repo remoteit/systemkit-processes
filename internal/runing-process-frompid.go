@@ -3,7 +3,7 @@ package internal
 import (
 	"os"
 
-	"github.com/codemodify/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 // GetRuningProcessByPID - finds process by PID

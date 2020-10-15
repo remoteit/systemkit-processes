@@ -6,7 +6,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/codemodify/systemkit-processes/find"
+	"github.com/remoteit/systemkit-processes/find"
 )
 
 func TestProcessByPID(t *testing.T) {

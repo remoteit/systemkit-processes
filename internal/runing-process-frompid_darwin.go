@@ -7,7 +7,7 @@ package internal
 import "C"
 
 import (
-	"github.com/codemodify/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 func getAllRuningProcesses() ([]contracts.RuningProcess, error) {

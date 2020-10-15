@@ -1,8 +1,8 @@
 package find
 
 import (
-	"github.com/codemodify/systemkit-processes/contracts"
-	"github.com/codemodify/systemkit-processes/internal"
+	"github.com/remoteit/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/internal"
 )
 
 // ProcessByPID - finds process by PID

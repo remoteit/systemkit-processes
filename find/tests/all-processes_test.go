@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/codemodify/systemkit-processes/find"
+	"github.com/remoteit/systemkit-processes/find"
 )
 
 func TestAllProcesses(t *testing.T) {

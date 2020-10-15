@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/codemodify/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 // copied from sys/sysctl.h

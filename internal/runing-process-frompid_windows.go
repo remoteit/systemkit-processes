@@ -10,7 +10,7 @@ import (
 	"github.com/StackExchange/wmi"
 	"golang.org/x/sys/windows"
 
-	"github.com/codemodify/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 func getAllRuningProcesses() ([]contracts.RuningProcess, error) {

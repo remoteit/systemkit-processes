@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	logging "github.com/codemodify/systemkit-logging"
-	"github.com/codemodify/systemkit-processes/contracts"
-	"github.com/codemodify/systemkit-processes/helpers"
+	logging "github.com/remoteit/systemkit-logging"
+	"github.com/remoteit/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/helpers"
 )
 
 const logID = "PROCESS"

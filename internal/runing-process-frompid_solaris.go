@@ -2,7 +2,7 @@
 
 package internal
 
-import "github.com/codemodify/systemkit-processes/contracts"
+import "github.com/remoteit/systemkit-processes/contracts"
 
 func getAllRuningProcesses() ([]contracts.RuningProcess, error) {
 	// FIXME:

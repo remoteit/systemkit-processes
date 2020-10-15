@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	logging "github.com/codemodify/systemkit-logging"
-	"github.com/codemodify/systemkit-processes/contracts"
-	"github.com/codemodify/systemkit-processes/helpers"
-	"github.com/codemodify/systemkit-processes/internal"
+	logging "github.com/remoteit/systemkit-logging"
+	"github.com/remoteit/systemkit-processes/contracts"
+	"github.com/remoteit/systemkit-processes/helpers"
+	"github.com/remoteit/systemkit-processes/internal"
 )
 
 const logID = "PROCESS-MONITOR"
