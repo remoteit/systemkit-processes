@@ -275,21 +275,21 @@ func (thisRef runingProcess) OnStdErr(outputReader contracts.ProcessOutputReader
 	}
 }
 
-func (thisRef *runingProcess) OnStop(stoppedDelegate contracts.ProcessStoppedDelegate) {
-	go func() {
+func (thisRef *runingProcess) OnStop(stoppedDelegate contracts.ProcessStoppedDelegate, params interface{}) {
+	go func(paramsToPass interface{}) {
 		for {
 			time.Sleep(1 * time.Second)
 
 			if !thisRef.IsRunning() {
 				thisRef.Stop(1, 100*time.Millisecond) // call this because .osCmd.Process.Wait() is needed
 				if stoppedDelegate != nil {
-					stoppedDelegate()
+					stoppedDelegate(paramsToPass)
 				}
 
 				return
 			}
 		}
-	}()
+	}(params)
 }
 
 func (thisRef runingProcess) processID() int {

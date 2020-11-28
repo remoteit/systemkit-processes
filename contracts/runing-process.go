@@ -81,5 +81,5 @@ type RuningProcess interface {
 
 	OnStdOut(outputReader ProcessOutputReader)
 	OnStdErr(outputReader ProcessOutputReader)
-	OnStop(stoppedDelegate ProcessStoppedDelegate)
+	OnStop(stoppedDelegate ProcessStoppedDelegate, params interface{})
 }

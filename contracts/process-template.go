@@ -4,7 +4,7 @@ package contracts
 type ProcessOutputReader func([]byte)
 
 // ProcessStoppedDelegate -
-type ProcessStoppedDelegate func()
+type ProcessStoppedDelegate func(params interface{})
 
 // ProcessTemplate -
 type ProcessTemplate struct {
