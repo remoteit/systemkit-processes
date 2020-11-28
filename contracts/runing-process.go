@@ -79,7 +79,7 @@ type RuningProcess interface {
 	StartedAt() time.Time
 	StoppedAt() time.Time
 
-	OnStdOut(outputReader ProcessOutputReader)
-	OnStdErr(outputReader ProcessOutputReader)
+	OnStdOut(outputReader ProcessOutputReader, params interface{})
+	OnStdErr(outputReader ProcessOutputReader, params interface{})
 	OnStop(stoppedDelegate ProcessStoppedDelegate, params interface{})
 }

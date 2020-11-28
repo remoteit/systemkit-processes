@@ -245,12 +245,12 @@ func (thisRef runingProcess) StoppedAt() time.Time {
 	return thisRef.stoppedAt
 }
 
-func (thisRef runingProcess) OnStdOut(outputReader contracts.ProcessOutputReader) {
+func (thisRef runingProcess) OnStdOut(outputReader contracts.ProcessOutputReader, params interface{}) {
 	logging.Debugf("%s: read-StdOut for [%s]", logID, thisRef.processTemplate.Executable)
 
 	if outputReader != nil {
 		go func() {
-			err := readOutput(thisRef.stdOut, outputReader)
+			err := readOutput(thisRef.stdOut, outputReader, params)
 			if err != nil {
 				logging.Warningf("%s: read-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
 			}
@@ -260,12 +260,12 @@ func (thisRef runingProcess) OnStdOut(outputReader contracts.ProcessOutputReader
 	}
 }
 
-func (thisRef runingProcess) OnStdErr(outputReader contracts.ProcessOutputReader) {
+func (thisRef runingProcess) OnStdErr(outputReader contracts.ProcessOutputReader, params interface{}) {
 	logging.Debugf("%s: read-StdErr for [%s]", logID, thisRef.processTemplate.Executable)
 
 	if outputReader != nil {
 		go func() {
-			err := readOutput(thisRef.stdErr, outputReader)
+			err := readOutput(thisRef.stdErr, outputReader, params)
 			if err != nil {
 				logging.Warningf("%s: read-StdErr-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
 			}
@@ -300,11 +300,11 @@ func (thisRef runingProcess) processID() int {
 	return thisRef.osCmd.Process.Pid
 }
 
-func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader) error {
+func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader, params interface{}) error {
 	reader := bufio.NewReader(readerCloser)
 	line, _, err := reader.ReadLine()
 	for err != io.EOF {
-		outputReader(line)
+		outputReader(params, line)
 		line, _, err = reader.ReadLine()
 	}
 
