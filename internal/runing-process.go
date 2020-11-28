@@ -313,7 +313,7 @@ func (thisRef runingProcess) processID() int {
 func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader, params interface{}) error {
 	reader := bufio.NewReader(readerCloser)
 	line, _, err := reader.ReadLine()
-	for err != io.EOF {
+	for err != nil {
 		outputReader(params, line)
 		line, _, err = reader.ReadLine()
 	}
