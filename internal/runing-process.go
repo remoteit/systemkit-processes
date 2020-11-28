@@ -114,6 +114,16 @@ func (thisRef *runingProcess) Stop(attempts int, waitTimeout time.Duration) erro
 		return nil
 	}
 
+	if thisRef.stdOut != nil {
+		thisRef.stdOut.Close()
+	}
+	if thisRef.stdErr != nil {
+		thisRef.stdErr.Close()
+	}
+
+	time.Sleep(200 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
 	var err error
 
 	count := 0
