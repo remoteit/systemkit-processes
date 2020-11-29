@@ -87,15 +87,17 @@ func (thisRef *processMonitor) StopWithTimeout(tag string, attempts int, waitTim
 	}
 
 	thisRef.procsSync.Lock()
-	defer thisRef.procsSync.Unlock()
 
 	// CHECK-IF-EXISTS
 	var rp contracts.RuningProcess
 	var keyExists bool
 
 	if rp, keyExists = thisRef.procs[tag]; !keyExists {
+		thisRef.procsSync.Unlock()
 		return nil
 	}
+
+	thisRef.procsSync.Unlock()
 
 	return rp.Stop(tag, attempts, waitTimeout)
 }
@@ -116,9 +118,9 @@ func (thisRef *processMonitor) StopAllInParallel() {
 	defer thisRef.procsSync.Unlock()
 
 	for k := range thisRef.procs {
-		go func() {
-			thisRef.Stop(k)
-		}()
+		go func(tag string) {
+			thisRef.Stop(tag)
+		}(k)
 	}
 }
 
