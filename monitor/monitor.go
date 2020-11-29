@@ -111,18 +111,15 @@ func (thisRef *processMonitor) Restart(tag string) error {
 }
 
 // StopAll -
-func (thisRef *processMonitor) StopAll() []error {
+func (thisRef *processMonitor) StopAllInParallel() {
 	thisRef.procsSync.Lock()
 	defer thisRef.procsSync.Unlock()
 
-	logging.Debugf("%s: stop-ALL", logID)
-
-	allErrors := []error{}
 	for k := range thisRef.procs {
-		allErrors = append(allErrors, thisRef.Stop(k))
+		go func() {
+			thisRef.Stop(k)
+		}()
 	}
-
-	return allErrors
 }
 
 // GetRuningProcess -
