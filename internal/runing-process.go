@@ -105,7 +105,7 @@ func (thisRef *runingProcess) Start() error {
 }
 
 // Stop - stops the process
-func (thisRef *runingProcess) Stop(attempts int, waitTimeout time.Duration) error {
+func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Duration) error {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return nil
 	}
@@ -114,18 +114,23 @@ func (thisRef *runingProcess) Stop(attempts int, waitTimeout time.Duration) erro
 		return nil
 	}
 
-	if thisRef.stdOut != nil {
-		thisRef.stdOut.Close()
-	}
-	if thisRef.stdErr != nil {
-		thisRef.stdErr.Close()
-	}
+	// go func() {
+	// 	if thisRef.stdOut != nil {
+	// 		thisRef.stdOut.Close()
+	// 	}
 
-	time.Sleep(200 * time.Millisecond)
-	time.Sleep(200 * time.Millisecond)
+	// 	if thisRef.stdErr != nil {
+	// 		thisRef.stdErr.Close()
+	// 	}
+	// }()
+
+	defer func() {
+		logging.Debugf("%s: STOP-END %s", logID, tag)
+	}()
+
+	logging.Debugf("%s: STOP-START %s", logID, tag)
 
 	var err error
-
 	count := 0
 	maxStopAttempts := 20
 	for {
@@ -291,7 +296,7 @@ func (thisRef *runingProcess) OnStop(stoppedDelegate contracts.ProcessStoppedDel
 			time.Sleep(1 * time.Second)
 
 			if !thisRef.IsRunning() {
-				thisRef.Stop(1, 100*time.Millisecond) // call this because .osCmd.Process.Wait() is needed
+				thisRef.Stop("", 1, 100*time.Millisecond) // call this because .osCmd.Process.Wait() is needed
 				if stoppedDelegate != nil {
 					stoppedDelegate(paramsToPass)
 				}
@@ -313,7 +318,11 @@ func (thisRef runingProcess) processID() int {
 func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader, params interface{}) error {
 	reader := bufio.NewReader(readerCloser)
 	line, _, err := reader.ReadLine()
-	for err != nil {
+	for {
+		if err != nil {
+			break
+		}
+
 		outputReader(params, line)
 		line, _, err = reader.ReadLine()
 	}
