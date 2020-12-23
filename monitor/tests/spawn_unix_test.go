@@ -15,19 +15,20 @@ import (
 func TestSpawnUnix(t *testing.T) {
 	const logID = "TestSpawnUnix"
 
+	logging.SetLogger(logging.NewStdoutLogger())
 	logging.Debugf("%s: START", logID)
 
+	processTag := "aaaaaaaaa"
 	monitor := procMon.New()
-
-	processTag, _ := monitor.Spawn(contracts.ProcessTemplate{
+	monitor.SpawnWithTag(contracts.ProcessTemplate{
 		Executable: "sh",
 		Args:       []string{"-c", "while :; do echo 'Hit CTRL+C'; echo aaaaaaa 1>&2; sleep 1; done"},
-	})
+	}, processTag)
 	monitor.GetProcess(processTag).OnStdOut(func(params interface{}, outputData []byte) {
-		logging.Debugf("%s: OnStdOut: %v", logID, string(outputData))
+		logging.Debugf("\n%s: OnStdOut: %v", logID, string(outputData))
 	}, nil)
 	monitor.GetProcess(processTag).OnStdErr(func(params interface{}, outputData []byte) {
-		logging.Debugf("%s: OnStdErr: %v", logID, string(outputData))
+		logging.Debugf("\n%s: OnStdErr: %v", logID, string(outputData))
 	}, nil)
 
 	logging.Infof(
@@ -48,7 +49,7 @@ func TestSpawnUnix(t *testing.T) {
 			case <-done:
 				return
 			case t := <-ticker.C:
-				logging.Debugf("%s: Tick at, %v", logID, t)
+				logging.Debugf("\n%s: Tick at, %v", logID, t)
 			}
 		}
 	}()

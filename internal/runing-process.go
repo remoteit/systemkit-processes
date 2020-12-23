@@ -145,7 +145,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 
 		for i := 0; i < attempts; i++ {
 			logging.Debugf("%s: stop-ATTEMPT-SIGINT #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
-			thisRef.osCmd.Process.Signal(syscall.SIGINT)
+			thisRef.osCmd.Process.Signal(syscall.SIGINT) // this works on all except on Windows
+			sendCtrlC(thisRef.osCmd.Process.Pid)         // this works on Windows
+
 			time.Sleep(waitTimeout)
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
