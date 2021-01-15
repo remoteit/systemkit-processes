@@ -220,7 +220,8 @@ func (thisRef runingProcess) IsRunning() bool {
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
 		rp.State != contracts.ProcessStateObsolete &&
-		rp.State != contracts.ProcessStateDead)
+		rp.State != contracts.ProcessStateDead &&
+		rp.State != contracts.ProcessStateUnknown)
 }
 
 // Details - return processTemplate about the process
