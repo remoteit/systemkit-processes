@@ -59,7 +59,11 @@ func NewRuningProcessWithOSProc(processTemplate contracts.ProcessTemplate, osPro
 
 // Start -
 func (thisRef *runingProcess) Start() error {
-	thisRef.osCmd = exec.Command(thisRef.processTemplate.Executable, thisRef.processTemplate.Args...)
+	cs := append(cmdStart, thisRef.processTemplate.Executable)
+	cs = append(cs, thisRef.processTemplate.Args...)
+
+	// thisRef.osCmd = exec.Command(thisRef.processTemplate.Executable, thisRef.processTemplate.Args...)
+	thisRef.osCmd = exec.Command(cs[0], cs[1:]...)
 
 	// set working folder
 	if !helpers.IsNullOrEmpty(thisRef.processTemplate.WorkingDirectory) {
@@ -71,7 +75,9 @@ func (thisRef *runingProcess) Start() error {
 		thisRef.osCmd.Env = thisRef.processTemplate.Environment
 	}
 
-	// capture STDOUT, STDERR
+	thisRef.osCmd.Stdin = nil
+
+	// capture STDERR
 	stdOutPipe, err := thisRef.osCmd.StdoutPipe()
 	if err != nil {
 		logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
@@ -79,12 +85,15 @@ func (thisRef *runingProcess) Start() error {
 	}
 	thisRef.stdOut = stdOutPipe
 
+	// capture STDERR
 	stdErrPipe, err := thisRef.osCmd.StderrPipe()
 	if err != nil {
 		logging.Errorf("%s: get-StdErr-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
 		return err
 	}
 	thisRef.stdErr = stdErrPipe
+
+	thisRef.osCmd.SysProcAttr = procAttrs
 
 	// start
 	logging.Debugf("%s: start %s", logID, helpers.AsJSONString(thisRef.processTemplate))
