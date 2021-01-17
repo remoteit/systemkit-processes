@@ -59,11 +59,11 @@ func NewRuningProcessWithOSProc(processTemplate contracts.ProcessTemplate, osPro
 
 // Start -
 func (thisRef *runingProcess) Start() error {
-	cs := append(cmdStart, thisRef.processTemplate.Executable)
-	cs = append(cs, thisRef.processTemplate.Args...)
+	// cs := append(cmdStart, thisRef.processTemplate.Executable)
+	// cs = append(cs, thisRef.processTemplate.Args...)
 
-	// thisRef.osCmd = exec.Command(thisRef.processTemplate.Executable, thisRef.processTemplate.Args...)
-	thisRef.osCmd = exec.Command(cs[0], cs[1:]...)
+	thisRef.osCmd = exec.Command(thisRef.processTemplate.Executable, thisRef.processTemplate.Args...)
+	// thisRef.osCmd = exec.Command(cs[0], cs[1:]...)
 
 	// set working folder
 	if !helpers.IsNullOrEmpty(thisRef.processTemplate.WorkingDirectory) {

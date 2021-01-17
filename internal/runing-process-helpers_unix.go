@@ -6,5 +6,5 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-var cmdStart = []string{}
+// var cmdStart = []string{}
 var procAttrs = &unix.SysProcAttr{}
