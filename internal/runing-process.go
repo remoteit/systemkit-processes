@@ -24,8 +24,6 @@ type runingProcess struct {
 	osCmd           *exec.Cmd
 	startedAt       time.Time
 	stoppedAt       time.Time
-	stdOut          io.ReadCloser
-	stdErr          io.ReadCloser
 }
 
 // NewEmptyRuningProcess -
@@ -73,27 +71,33 @@ func (thisRef *runingProcess) Start() error {
 	}
 
 	// capture STDERR
-	stdOutPipe, err := thisRef.osCmd.StdoutPipe()
-	if err != nil {
-		logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-		return err
+	if thisRef.processTemplate.StdoutReader != nil {
+		stdOutPipe, err := thisRef.osCmd.StdoutPipe()
+		if err != nil {
+			logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+			return err
+		}
+
+		thisRef.setOutputReader(stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
 	}
-	thisRef.stdOut = stdOutPipe
 
 	// capture STDERR
-	stdErrPipe, err := thisRef.osCmd.StderrPipe()
-	if err != nil {
-		logging.Errorf("%s: get-StdErr-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-		return err
+	if thisRef.processTemplate.StderrReader != nil {
+		stdErrPipe, err := thisRef.osCmd.StderrPipe()
+		if err != nil {
+			logging.Errorf("%s: get-StdErr-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+			return err
+		}
+
+		thisRef.setOutputReader(stdErrPipe, thisRef.processTemplate.StderrReader, thisRef.processTemplate.StderrReaderParams)
 	}
-	thisRef.stdErr = stdErrPipe
 
 	thisRef.osCmd.SysProcAttr = procAttrs
 
 	// start
 	logging.Debugf("%s: start %s", logID, helpers.AsJSONString(thisRef.processTemplate))
 
-	err = thisRef.osCmd.Start()
+	err := thisRef.osCmd.Start()
 	if err != nil {
 		thisRef.stoppedAt = time.Now()
 
@@ -267,34 +271,17 @@ func (thisRef runingProcess) StoppedAt() time.Time {
 	return thisRef.stoppedAt
 }
 
-func (thisRef runingProcess) OnStdOut(outputReader contracts.ProcessOutputReader, params interface{}) {
+func (thisRef runingProcess) setOutputReader(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader, params interface{}) {
 	logging.Debugf("%s: read-StdOut for [%s]", logID, thisRef.processTemplate.Executable)
 
-	if outputReader != nil {
-		go func() {
-			err := readOutput(thisRef.stdOut, outputReader, params)
-			if err != nil {
-				logging.Warningf("%s: read-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-			}
+	go func() {
+		err := readOutput(readerCloser, outputReader, params)
+		if err != nil {
+			logging.Warningf("%s: read-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+		}
 
-			logging.Debugf("%s: read-StdOut-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
-		}()
-	}
-}
-
-func (thisRef runingProcess) OnStdErr(outputReader contracts.ProcessOutputReader, params interface{}) {
-	logging.Debugf("%s: read-StdErr for [%s]", logID, thisRef.processTemplate.Executable)
-
-	if outputReader != nil {
-		go func() {
-			err := readOutput(thisRef.stdErr, outputReader, params)
-			if err != nil {
-				logging.Warningf("%s: read-StdErr-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-			}
-
-			logging.Debugf("%s: read-StdErr-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
-		}()
-	}
+		logging.Debugf("%s: read-StdOut-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
+	}()
 }
 
 func (thisRef *runingProcess) OnStop(stoppedDelegate contracts.ProcessStoppedDelegate, params interface{}) {

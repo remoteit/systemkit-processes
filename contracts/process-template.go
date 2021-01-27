@@ -8,8 +8,12 @@ type ProcessStoppedDelegate func(params interface{})
 
 // ProcessTemplate -
 type ProcessTemplate struct {
-	Executable       string   `json:"executable"`
-	Args             []string `json:"args"`
-	WorkingDirectory string   `json:"workingDirectory"`
-	Environment      []string `json:"environment"`
+	Executable         string   `json:"executable"`
+	Args               []string `json:"args"`
+	WorkingDirectory   string   `json:"workingDirectory"`
+	Environment        []string `json:"environment"`
+	StdoutReader       ProcessOutputReader
+	StdoutReaderParams interface{}
+	StderrReader       ProcessOutputReader
+	StderrReaderParams interface{}
 }
