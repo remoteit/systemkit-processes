@@ -146,10 +146,12 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			thisRef.osCmd.Process.Signal(syscall.SIGINT) // this works on all except on Windows
 			sendCtrlC(thisRef.osCmd.Process.Pid)         // this works on Windows
 			time.Sleep(waitTimeout)
+
 			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete {
+			if rp.State == contracts.ProcessStateObsolete { // we need .Wait() on zombies to read exit code and release it
 				thisRef.osCmd.Process.Wait()
 			}
+
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -236,7 +238,7 @@ func (thisRef runingProcess) IsRunning() bool {
 	rp := thisRef.Details()
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
-		rp.State != contracts.ProcessStateObsolete && // we need .Wait() on zombies to read exit code and release it
+		// rp.State != contracts.ProcessStateObsolete &&
 		rp.State != contracts.ProcessStateDead &&
 		rp.State != contracts.ProcessStateUnknown)
 }
