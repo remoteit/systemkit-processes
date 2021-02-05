@@ -124,7 +124,6 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 
 	defer func() {
 		logging.Debugf("%s: STOP-END %s", logID, tag)
-		thisRef.osCmd.Process.Wait()
 	}()
 
 	logging.Debugf("%s: STOP-START %s", logID, tag)
@@ -218,7 +217,7 @@ func (thisRef runingProcess) IsRunning() bool {
 	rp := thisRef.Details()
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
-		rp.State != contracts.ProcessStateObsolete &&
+		// rp.State != contracts.ProcessStateObsolete && // we need .Wait() on zombies to read exit code and release it
 		rp.State != contracts.ProcessStateDead &&
 		rp.State != contracts.ProcessStateUnknown)
 }
