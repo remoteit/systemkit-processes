@@ -145,8 +145,11 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-SIGINT #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			thisRef.osCmd.Process.Signal(syscall.SIGINT) // this works on all except on Windows
 			sendCtrlC(thisRef.osCmd.Process.Pid)         // this works on Windows
-
 			time.Sleep(waitTimeout)
+			rp := thisRef.Details()
+			if rp.State == contracts.ProcessStateObsolete {
+				thisRef.osCmd.Process.Wait()
+			}
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -159,6 +162,10 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-SIGTERM #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			thisRef.osCmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(waitTimeout)
+			rp := thisRef.Details()
+			if rp.State == contracts.ProcessStateObsolete {
+				thisRef.osCmd.Process.Wait()
+			}
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -171,6 +178,10 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-SIGKILL #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			thisRef.osCmd.Process.Signal(syscall.SIGKILL)
 			time.Sleep(waitTimeout)
+			rp := thisRef.Details()
+			if rp.State == contracts.ProcessStateObsolete {
+				thisRef.osCmd.Process.Wait()
+			}
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -183,6 +194,10 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-aggressive-kill-1 #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			processKillHelper(thisRef.osCmd.Process.Pid)
 			time.Sleep(waitTimeout)
+			rp := thisRef.Details()
+			if rp.State == contracts.ProcessStateObsolete {
+				thisRef.osCmd.Process.Wait()
+			}
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -195,6 +210,10 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-aggressive-kill-2 #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			err = thisRef.osCmd.Process.Kill()
 			time.Sleep(waitTimeout)
+			rp := thisRef.Details()
+			if rp.State == contracts.ProcessStateObsolete {
+				thisRef.osCmd.Process.Wait()
+			}
 			if !thisRef.IsRunning() {
 				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
@@ -217,7 +236,7 @@ func (thisRef runingProcess) IsRunning() bool {
 	rp := thisRef.Details()
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
-		// rp.State != contracts.ProcessStateObsolete && // we need .Wait() on zombies to read exit code and release it
+		rp.State != contracts.ProcessStateObsolete && // we need .Wait() on zombies to read exit code and release it
 		rp.State != contracts.ProcessStateDead &&
 		rp.State != contracts.ProcessStateUnknown)
 }
