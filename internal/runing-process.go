@@ -122,18 +122,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 		return nil
 	}
 
-	// go func() {
-	// 	if thisRef.stdOut != nil {
-	// 		thisRef.stdOut.Close()
-	// 	}
-
-	// 	if thisRef.stdErr != nil {
-	// 		thisRef.stdErr.Close()
-	// 	}
-	// }()
-
 	defer func() {
 		logging.Debugf("%s: STOP-END %s", logID, tag)
+		thisRef.osCmd.Process.Wait()
 	}()
 
 	logging.Debugf("%s: STOP-START %s", logID, tag)
