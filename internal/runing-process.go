@@ -321,6 +321,8 @@ func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutput
 		line, _, err = reader.ReadLine()
 	}
 
+	readerCloser.Close()
+
 	if err == io.EOF {
 		return nil
 	}

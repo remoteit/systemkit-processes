@@ -71,3 +71,33 @@ func TestSpawnUnix(t *testing.T) {
 		monitor.GetProcess(processTag).StoppedAt(),
 	)
 }
+
+//
+
+func TestSpawnUnix2(t *testing.T) {
+	const logID = "TestSpawnUnix"
+
+	logging.SetLogger(logging.NewStdoutLogger())
+	logging.Debugf("%s: START", logID)
+
+	processTag := "tag"
+	monitor := procMon.New()
+	monitor.SpawnWithTag(contracts.ProcessTemplate{
+		Executable: "/usr/bin/connectd",
+		Args: []string{
+			"-s", "-mfg", "33024", "-ptf", "769", "-p", "bmljb2xhZUByZW1vdGUuaXQ=", "EA5AE177DCAB4A7329A853B84DF7689D6B8602EE", "80:00:00:00:01:09:D9:F4", "T33001", "2", "127.0.0.1", "0.0.0.0", "35", "0", "0",
+		},
+		StdoutReader: func(params interface{}, outputData []byte) {
+			go func() {
+				logLine := string(outputData)
+				logging.Debugf("\n%s: OnStdOut: %v", logID, logLine)
+			}()
+		},
+		StderrReader: func(params interface{}, outputData []byte) {
+			logLine := string(outputData)
+			logging.Debugf("\n%s: OnStdErr: %v", logID, logLine)
+		},
+	}, processTag)
+
+	time.Sleep(1 * time.Hour)
+}
