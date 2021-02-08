@@ -1,4 +1,4 @@
-github.com/remoteit/systemkit-logging v1.8.5 h1:Fd462u1+hU8Pvogg6p1ZC1Iyws4XoY1CIyJyg+hTji8=
-github.com/remoteit/systemkit-logging v1.8.5/go.mod h1:ZTjBv0PVNAIE+9cW1S5lJrz2hMMP9sRTtZCfhRsxJ/c=
-golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211 h1:9UQO31fZ+0aKQOFldThf7BKPMJTiBfWycGh/u3UoO88=
-golang.org/x/sys v0.0.0-20201015000850-e3ed0017c211/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+github.com/remoteit/systemkit-logging v1.8.6 h1:vpM55Ft5/A5FcWR9JqjIyR5517WLlPNEfkvnuJrm5ic=
+github.com/remoteit/systemkit-logging v1.8.6/go.mod h1:UIXArHbQPsiyx/2STjyxYmqOtPhF8j0GwGTIay1FjMk=
+golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c h1:VwygUrnw9jn88c4u8GD3rZQbqrP/tgas88tPUbBxQrk=
+golang.org/x/sys v0.0.0-20210124154548-22da62e12c0c/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
