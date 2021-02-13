@@ -24,11 +24,11 @@ func TestStoppedUnix(t *testing.T) {
 
 	processTag, _ := monitor.Spawn(contracts.ProcessTemplate{
 		Executable: "notepad.exe",
+		OnStopped: func(params interface{}) {
+			logging.Debugf("%s: OnStop()", logID)
+			wg.Done()
+		},
 	})
-	monitor.GetProcess(processTag).OnStop(func(params interface{}) {
-		logging.Debugf("%s: OnStop()", logID)
-		wg.Done()
-	}, nil)
 
 	logging.Infof(
 		"%s: pid: %v",

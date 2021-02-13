@@ -53,27 +53,13 @@ func (thisRef *processMonitor) SpawnWithTag(processTemplate contracts.ProcessTem
 
 // Start -
 func (thisRef *processMonitor) Start(tag string) error {
-	if thisRef.GetProcess(tag).IsRunning() {
+	rp := thisRef.GetProcess(tag)
+	if rp.IsRunning() {
 		return nil
 	}
 
-	thisRef.procsSync.Lock()
-	defer thisRef.procsSync.Unlock()
-
-	// CHECK-IF-EXISTS
-	if _, ok := thisRef.procs[tag]; !ok {
-		return fmt.Errorf("ID %s, CHECK-IF-EXISTS failed", tag)
-	}
-
 	logging.Debugf("%s: start %s", logID, tag)
-
-	err := thisRef.procs[tag].Start()
-	if err != nil {
-		logging.Errorf("%s: start-FAIL %s, %s", logID, thisRef.procs[tag], err.Error())
-		return err
-	}
-
-	return nil
+	return rp.Start()
 }
 
 // Stop -
@@ -82,23 +68,7 @@ func (thisRef *processMonitor) Stop(tag string) error {
 }
 
 func (thisRef *processMonitor) StopWithTimeout(tag string, attempts int, waitTimeout time.Duration) error {
-	if !thisRef.GetProcess(tag).IsRunning() {
-		return nil
-	}
-
-	thisRef.procsSync.Lock()
-
-	// CHECK-IF-EXISTS
-	var rp contracts.RuningProcess
-	var keyExists bool
-
-	if rp, keyExists = thisRef.procs[tag]; !keyExists {
-		thisRef.procsSync.Unlock()
-		return nil
-	}
-
-	thisRef.procsSync.Unlock()
-
+	rp := thisRef.GetProcess(tag)
 	return rp.Stop(tag, attempts, waitTimeout)
 }
 

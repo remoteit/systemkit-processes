@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 
@@ -20,43 +21,51 @@ const logID = "PROCESS"
 const processDoesNotExist = -1
 
 type runingProcess struct {
-	processTemplate contracts.ProcessTemplate
-	osCmd           *exec.Cmd
-	startedAt       time.Time
-	stoppedAt       time.Time
+	processTemplate    contracts.ProcessTemplate
+	osCmd              *exec.Cmd
+	startedAt          time.Time
+	stoppedAt          time.Time
+	houseKeepingMutex  *sync.Mutex
+	onStoppedWasCalled bool
+	isEmptyProcess     bool
+}
+
+func newRuningProcess(processTemplate contracts.ProcessTemplate, isEmptyProcess bool) *runingProcess {
+	return &runingProcess{
+		processTemplate:    processTemplate,
+		osCmd:              nil,
+		startedAt:          time.Unix(0, 0),
+		stoppedAt:          time.Unix(0, 0),
+		houseKeepingMutex:  &sync.Mutex{},
+		onStoppedWasCalled: false,
+		isEmptyProcess:     isEmptyProcess,
+	}
 }
 
 // NewEmptyRuningProcess -
 func NewEmptyRuningProcess() contracts.RuningProcess {
-	return NewRuningProcess(contracts.ProcessTemplate{})
+	return newRuningProcess(contracts.ProcessTemplate{}, true)
 }
 
 // NewRuningProcess -
 func NewRuningProcess(processTemplate contracts.ProcessTemplate) contracts.RuningProcess {
-	return &runingProcess{
-		processTemplate: processTemplate,
-		osCmd:           nil,
-		startedAt:       time.Unix(0, 0),
-		stoppedAt:       time.Unix(0, 0),
-	}
+	return newRuningProcess(processTemplate, false)
 }
 
 // NewRuningProcessWithOSProc -
 func NewRuningProcessWithOSProc(processTemplate contracts.ProcessTemplate, osProc *os.Process) contracts.RuningProcess {
-	r := &runingProcess{
-		processTemplate: processTemplate,
-		osCmd:           exec.Command(processTemplate.Executable, processTemplate.Args...),
-		startedAt:       time.Unix(0, 0),
-		stoppedAt:       time.Unix(0, 0),
-	}
+	rp := newRuningProcess(processTemplate, false)
+	rp.osCmd = exec.Command(processTemplate.Executable, processTemplate.Args...)
+	rp.osCmd.Process = osProc
 
-	r.osCmd.Process = osProc
-
-	return r
+	return rp
 }
 
 // Start -
 func (thisRef *runingProcess) Start() error {
+	if thisRef.isEmptyProcess {
+		return nil
+	}
 
 	thisRef.osCmd = exec.Command(thisRef.processTemplate.Executable, thisRef.processTemplate.Args...)
 
@@ -70,16 +79,36 @@ func (thisRef *runingProcess) Start() error {
 		thisRef.osCmd.Env = thisRef.processTemplate.Environment
 	}
 
-	// capture STDERR
-	if thisRef.processTemplate.StdoutReader != nil {
-		stdOutPipe, err := thisRef.osCmd.StdoutPipe()
-		if err != nil {
-			logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-			return err
-		}
-
-		thisRef.setOutputReader(stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
+	// capture STDOUT
+	stdOutPipe, err := thisRef.osCmd.StdoutPipe()
+	if err != nil {
+		logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+		return err
 	}
+
+	go func() {
+		thisRef.osCmd.Process.Wait() // read the exit code on quit
+
+		logging.Debugf("%s: read-STDOUT for [%s]", logID, thisRef.processTemplate.Executable)
+		err := readOutput(stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
+		if err != nil {
+			logging.Warningf("%s: read-STDOUT-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+		}
+		logging.Debugf("%s: read-STDOUT-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
+
+		if thisRef.processTemplate.StdoutReader != nil {
+			thisRef.houseKeepingMutex.Lock()
+			defer thisRef.houseKeepingMutex.Unlock()
+
+			if !thisRef.onStoppedWasCalled {
+				if thisRef.processTemplate.OnStopped != nil {
+					thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
+				}
+
+				thisRef.onStoppedWasCalled = true
+			}
+		}
+	}()
 
 	// capture STDERR
 	if thisRef.processTemplate.StderrReader != nil {
@@ -89,7 +118,26 @@ func (thisRef *runingProcess) Start() error {
 			return err
 		}
 
-		thisRef.setOutputReader(stdErrPipe, thisRef.processTemplate.StderrReader, thisRef.processTemplate.StderrReaderParams)
+		go func() {
+			logging.Debugf("%s: read-STDERR for [%s]", logID, thisRef.processTemplate.Executable)
+			err := readOutput(stdErrPipe, thisRef.processTemplate.StderrReader, thisRef.processTemplate.StderrReaderParams)
+			if err != nil {
+				logging.Warningf("%s: read-STDERR-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+			}
+			logging.Debugf("%s: read-STDERR-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
+
+			//
+			thisRef.houseKeepingMutex.Lock()
+			defer thisRef.houseKeepingMutex.Unlock()
+
+			if !thisRef.onStoppedWasCalled {
+				if thisRef.processTemplate.OnStopped != nil {
+					thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
+				}
+
+				thisRef.onStoppedWasCalled = true
+			}
+		}()
 	}
 
 	thisRef.osCmd.SysProcAttr = procAttrs
@@ -119,6 +167,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 	}
 
 	if !thisRef.IsRunning() {
+		thisRef.osCmd.Process.Wait()
 		return nil
 	}
 
@@ -147,13 +196,8 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			sendCtrlC(thisRef.osCmd.Process.Pid)         // this works on Windows
 			time.Sleep(waitTimeout)
 
-			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete { // we need .Wait() on zombies to read exit code and release it
-				thisRef.osCmd.Process.Wait()
-			}
-
+			thisRef.osCmd.Process.Wait()
 			if !thisRef.IsRunning() {
-				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -164,12 +208,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-SIGTERM #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			thisRef.osCmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(waitTimeout)
-			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete {
-				thisRef.osCmd.Process.Wait()
-			}
+
+			thisRef.osCmd.Process.Wait()
 			if !thisRef.IsRunning() {
-				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -180,12 +221,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-SIGKILL #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			thisRef.osCmd.Process.Signal(syscall.SIGKILL)
 			time.Sleep(waitTimeout)
-			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete {
-				thisRef.osCmd.Process.Wait()
-			}
+
+			thisRef.osCmd.Process.Wait()
 			if !thisRef.IsRunning() {
-				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -196,12 +234,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-aggressive-kill-1 #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			processKillHelper(thisRef.osCmd.Process.Pid)
 			time.Sleep(waitTimeout)
-			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete {
-				thisRef.osCmd.Process.Wait()
-			}
+
+			thisRef.osCmd.Process.Wait()
 			if !thisRef.IsRunning() {
-				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -212,12 +247,9 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			logging.Debugf("%s: stop-ATTEMPT-aggressive-kill-2 #%d to stop [%s]", logID, i, thisRef.processTemplate.Executable)
 			err = thisRef.osCmd.Process.Kill()
 			time.Sleep(waitTimeout)
-			rp := thisRef.Details()
-			if rp.State == contracts.ProcessStateObsolete {
-				thisRef.osCmd.Process.Wait()
-			}
+
+			thisRef.osCmd.Process.Wait()
 			if !thisRef.IsRunning() {
-				thisRef.osCmd.Process.Wait()
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -229,7 +261,11 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 }
 
 // IsRunning - tells if the process is running
-func (thisRef runingProcess) IsRunning() bool {
+func (thisRef *runingProcess) IsRunning() bool {
+	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
+		return false
+	}
+
 	pid := thisRef.processID()
 	if pid == processDoesNotExist {
 		return false
@@ -238,13 +274,19 @@ func (thisRef runingProcess) IsRunning() bool {
 	rp := thisRef.Details()
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
-		// rp.State != contracts.ProcessStateObsolete &&
+		rp.State != contracts.ProcessStateObsolete &&
 		rp.State != contracts.ProcessStateDead &&
 		rp.State != contracts.ProcessStateUnknown)
 }
 
 // Details - return processTemplate about the process
-func (thisRef runingProcess) Details() contracts.RuntimeProcess {
+func (thisRef *runingProcess) Details() contracts.RuntimeProcess {
+	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
+		return contracts.RuntimeProcess{
+			State: contracts.ProcessStateNonExistent,
+		}
+	}
+
 	rpByPID, err := getRuntimeProcessByPID(thisRef.processID())
 	if err != nil {
 		return contracts.RuntimeProcess{
@@ -256,7 +298,7 @@ func (thisRef runingProcess) Details() contracts.RuntimeProcess {
 }
 
 // ExitCode -
-func (thisRef runingProcess) ExitCode() int {
+func (thisRef *runingProcess) ExitCode() int {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil || thisRef.osCmd.ProcessState == nil {
 		return 0
 	}
@@ -265,7 +307,7 @@ func (thisRef runingProcess) ExitCode() int {
 }
 
 // StartedAt - returns the time when the process was started
-func (thisRef runingProcess) StartedAt() time.Time {
+func (thisRef *runingProcess) StartedAt() time.Time {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return time.Unix(0, 0)
 	}
@@ -274,7 +316,7 @@ func (thisRef runingProcess) StartedAt() time.Time {
 }
 
 // StoppedAt - returns the time when the process was stopped
-func (thisRef runingProcess) StoppedAt() time.Time {
+func (thisRef *runingProcess) StoppedAt() time.Time {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return time.Unix(0, 0)
 	}
@@ -282,37 +324,7 @@ func (thisRef runingProcess) StoppedAt() time.Time {
 	return thisRef.stoppedAt
 }
 
-func (thisRef runingProcess) setOutputReader(readerCloser io.ReadCloser, outputReader contracts.ProcessOutputReader, params interface{}) {
-	logging.Debugf("%s: read-StdOut for [%s]", logID, thisRef.processTemplate.Executable)
-
-	go func() {
-		err := readOutput(readerCloser, outputReader, params)
-		if err != nil {
-			logging.Warningf("%s: read-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-		}
-
-		logging.Debugf("%s: read-StdOut-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
-	}()
-}
-
-func (thisRef *runingProcess) OnStop(stoppedDelegate contracts.ProcessStoppedDelegate, params interface{}) {
-	go func(paramsToPass interface{}) {
-		for {
-			time.Sleep(1 * time.Second)
-
-			if !thisRef.IsRunning() {
-				thisRef.Stop("", 1, 100*time.Millisecond) // call this because .osCmd.Process.Wait() is needed
-				if stoppedDelegate != nil {
-					stoppedDelegate(paramsToPass)
-				}
-
-				return
-			}
-		}
-	}(params)
-}
-
-func (thisRef runingProcess) processID() int {
+func (thisRef *runingProcess) processID() int {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return processDoesNotExist
 	}
@@ -328,7 +340,10 @@ func readOutput(readerCloser io.ReadCloser, outputReader contracts.ProcessOutput
 			break
 		}
 
-		outputReader(params, line)
+		if outputReader != nil {
+			outputReader(params, line)
+		}
+
 		line, _, err = reader.ReadLine()
 	}
 

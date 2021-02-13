@@ -78,6 +78,4 @@ type RuningProcess interface {
 	ExitCode() int
 	StartedAt() time.Time
 	StoppedAt() time.Time
-
-	OnStop(stoppedDelegate ProcessStoppedDelegate, params interface{})
 }
