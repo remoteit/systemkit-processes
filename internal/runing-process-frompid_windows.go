@@ -94,7 +94,7 @@ func getRuntimeProcessByPID(pid int) (contracts.RuntimeProcess, error) {
 	}
 
 	return contracts.RuntimeProcess{
-		State: contracts.ProcessStateUnknown,
+		State: contracts.ProcessStateNonExistent,
 	}, nil
 }
 
