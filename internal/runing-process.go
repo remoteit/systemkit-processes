@@ -87,14 +87,14 @@ func (thisRef *runingProcess) Start() error {
 	}
 
 	go func() {
-		thisRef.osCmd.Process.Wait() // read the exit code on quit
-
 		logging.Debugf("%s: read-STDOUT for [%s]", logID, thisRef.processTemplate.Executable)
 		err := readOutput(stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
 		if err != nil {
 			logging.Warningf("%s: read-STDOUT-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
 		}
 		logging.Debugf("%s: read-STDOUT-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
+
+		thisRef.osCmd.Process.Wait() // read the exit code on quit
 
 		if thisRef.processTemplate.StdoutReader != nil {
 			thisRef.houseKeepingMutex.Lock()
@@ -145,7 +145,7 @@ func (thisRef *runingProcess) Start() error {
 	// start
 	logging.Debugf("%s: start %s", logID, helpers.AsJSONString(thisRef.processTemplate))
 
-	err := thisRef.osCmd.Start()
+	err = thisRef.osCmd.Start()
 	if err != nil {
 		thisRef.stoppedAt = time.Now()
 

@@ -11,19 +11,20 @@ var ErrProcessDoesNotExist = errors.New("ErrProcessDoesNotExist")
 // ProcessState -
 type ProcessState int
 
-// ProcessStateWaitingIO -
+// ProcessStateNonExistent -
 const (
+	ProcessStateNonExistent ProcessState = iota
+
 	// UNIX
-	ProcessStateWaitingIO    ProcessState = iota // 0 -> D - Uninterruptible sleep (usually IO)
-	ProcessStateRunning                          // 1 -> R - Running or runnable (on run queue)
-	ProcessStateWaitingEvent                     // 2 -> S - Interruptible sleep (waiting for an event to complete)
-	ProcessStateTraced                           // 3 -> T - Stopped, either by a job control signal or because it is being traced
-	ProcessStatePaging                           // 4 -> W - paging (not valid since the 2.6.xx kernel)
-	ProcessStateDead                             // 5 -> X - dead (should never be seen)
-	ProcessStateObsolete                         // 6 -> Z - Defunct ("zombie" / "obsolete") process, terminated but not reaped by its parent
+	ProcessStateWaitingIO    // 0 -> D - Uninterruptible sleep (usually IO)
+	ProcessStateRunning      // 1 -> R - Running or runnable (on run queue)
+	ProcessStateWaitingEvent // 2 -> S - Interruptible sleep (waiting for an event to complete)
+	ProcessStateTraced       // 3 -> T - Stopped, either by a job control signal or because it is being traced
+	ProcessStatePaging       // 4 -> W - paging (not valid since the 2.6.xx kernel)
+	ProcessStateDead         // 5 -> X - dead (should never be seen)
+	ProcessStateObsolete     // 6 -> Z - Defunct ("zombie" / "obsolete") process, terminated but not reaped by its parent
 
 	// EXTEND
-	ProcessStateNonExistent // process does not exist
 	ProcessStateUnknown
 )
 

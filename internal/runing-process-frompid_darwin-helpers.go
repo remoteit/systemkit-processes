@@ -2,83 +2,107 @@
 
 package internal
 
-// #include <libproc.h>
-// #include <stdlib.h>
-import "C"
-
 import (
+	"bytes"
+	"encoding/binary"
 	"syscall"
 	"unsafe"
+
+	"github.com/remoteit/systemkit-processes/contracts"
 )
 
-// See https://opensource.apple.com/source/xnu/xnu-2782.40.9/libsyscall/wrappers/libproc/libproc.c
-const pathBufferSize = C.PROC_PIDPATHINFO_MAXSIZE
-
-// See https://opensource.apple.com/source/xnu/xnu-1699.24.23/bsd/sys/proc_internal.h
-const pidsBufferSize = 99999 // #define Pid_MAX 99999
-
-func listAllPids() ([]int, error) {
-	buffer := make([]uint32, pidsBufferSize)
-
-	_, err := C.proc_listallpids(unsafe.Pointer(&buffer[0]), C.int(pidsBufferSize))
+func listAllRuntimeProcesses() ([]contracts.RuntimeProcess, error) {
+	buf, err := darwinSyscall()
 	if err != nil {
 		return nil, err
 	}
 
-	pids := []int{}
-	for _, pid := range buffer {
-		if pid != 0 {
-			pids = append(pids, int(pid))
+	procs := make([]*kinfoProc, 0, 50)
+	k := 0
+	for i := _KINFO_STRUCT_SIZE; i < buf.Len(); i += _KINFO_STRUCT_SIZE {
+		proc := &kinfoProc{}
+		err = binary.Read(bytes.NewBuffer(buf.Bytes()[k:i]), binary.LittleEndian, proc)
+		if err != nil {
+			return nil, err
+		}
+
+		k = i
+		procs = append(procs, proc)
+	}
+
+	darwinProcs := make([]contracts.RuntimeProcess, len(procs))
+	for i, p := range procs {
+		darwinProcs[i] = contracts.RuntimeProcess{
+			State:           contracts.ProcessStateRunning,
+			ProcessID:       int(p.Pid),
+			ParentProcessID: int(p.PPid),
+			Executable:      darwinCstring(p.Comm),
 		}
 	}
 
-	return pids, nil
+	return darwinProcs, nil
 }
 
-func fromPidGetProcPath(pid int) (string, error) {
-	// Allocate in the C heap a string (char* terminated with `/0`) of size `pathBufferSize`
-	// Make sure that we free that memory that gets allocated in C (see the `defer` below)
-	buffer := C.CString(string(make([]byte, pathBufferSize)))
-	defer C.free(unsafe.Pointer(buffer))
-
-	// Call libproc -> proc_pidpath
-	ret, err := C.proc_pidpath(C.int(pid), unsafe.Pointer(buffer), pathBufferSize)
-	if ret <= 0 {
-		return "", err
+func darwinCstring(s [16]byte) string {
+	i := 0
+	for _, b := range s {
+		if b != 0 {
+			i++
+		} else {
+			break
+		}
 	}
 
-	// Convert the C string back to a Go string.
-	path := C.GoString(buffer)
-
-	return path, nil
+	return string(s[:i])
 }
 
-func fromPidGetProcName(pid int) (string, error) {
-	// Allocate in the C heap a string (char* terminated with `/0`) of size `pathBufferSize`
-	// Make sure that we free that memory that gets allocated in C (see the `defer` below)
-	buffer := C.CString(string(make([]byte, pathBufferSize)))
-	defer C.free(unsafe.Pointer(buffer))
+func darwinSyscall() (*bytes.Buffer, error) {
+	mib := [4]int32{_CTRL_KERN, _KERN_PROC, _KERN_PROC_ALL, 0}
+	size := uintptr(0)
 
-	// Call libproc -> proc_name
-	ret, err := C.proc_name(C.int(pid), unsafe.Pointer(buffer), pathBufferSize)
-	if ret <= 0 {
-		return "", err
+	_, _, errno := syscall.Syscall6(
+		syscall.SYS___SYSCTL,
+		uintptr(unsafe.Pointer(&mib[0])),
+		4,
+		0,
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		0)
+
+	if errno != 0 {
+		return nil, errno
 	}
 
-	// Convert the C string back to a Go string.
-	path := C.GoString(buffer)
+	bs := make([]byte, size)
+	_, _, errno = syscall.Syscall6(
+		syscall.SYS___SYSCTL,
+		uintptr(unsafe.Pointer(&mib[0])),
+		4,
+		uintptr(unsafe.Pointer(&bs[0])),
+		uintptr(unsafe.Pointer(&size)),
+		0,
+		0)
 
-	return path, nil
+	if errno != 0 {
+		return nil, errno
+	}
+
+	return bytes.NewBuffer(bs[0:size]), nil
 }
 
-func fromPidGetProcInfo(pid int, info *C.struct_proc_taskallinfo) error {
-	size := C.int(unsafe.Sizeof(*info))
-	ptr := unsafe.Pointer(info)
+const (
+	_CTRL_KERN         = 1
+	_KERN_PROC         = 14
+	_KERN_PROC_ALL     = 0
+	_KINFO_STRUCT_SIZE = 648
+)
 
-	n := C.proc_pidinfo(C.int(pid), C.PROC_PIDTASKALLINFO, 0, ptr, size)
-	if n != size {
-		return syscall.ENOMEM
-	}
-
-	return nil
+type kinfoProc struct {
+	_    [40]byte
+	Pid  int32
+	_    [199]byte
+	Comm [16]byte
+	_    [301]byte
+	PPid int32
+	_    [84]byte
 }

@@ -2,74 +2,52 @@
 
 package internal
 
-// #include <libproc.h>
-// #include <sys/sysctl.h>
-import "C"
-
 import (
+	"os"
+
 	"github.com/remoteit/systemkit-processes/contracts"
 )
 
 func getAllRuningProcesses() ([]contracts.RuningProcess, error) {
-	pids, err := listAllPids()
+	runtimeProcesses, err := listAllRuntimeProcesses()
 	if err != nil {
 		return []contracts.RuningProcess{}, err
 	}
 
 	results := []contracts.RuningProcess{}
-
-	for _, pid := range pids {
-		p, err := getRuningProcessByPID(int(pid))
+	for _, runtimeProcess := range runtimeProcesses {
+		osProcess, err := os.FindProcess(runtimeProcess.ProcessID)
 		if err != nil {
 			continue
 		}
 
-		results = append(results, p)
+		runingProcess := NewRuningProcessWithOSProc(
+			contracts.ProcessTemplate{
+				Executable:       runtimeProcess.Executable,
+				Args:             runtimeProcess.Args,
+				WorkingDirectory: runtimeProcess.WorkingDirectory,
+				Environment:      runtimeProcess.Environment,
+			},
+			osProcess,
+		)
+
+		results = append(results, runingProcess)
 	}
 
 	return results, nil
 }
 
 func getRuntimeProcessByPID(pid int) (contracts.RuntimeProcess, error) {
-	// https://fergofrog.com/code/cbowser/xnu/bsd/sys/proc_info.h.html#proc_bsdinfo
-	info := C.struct_proc_taskallinfo{}
-	if err := fromPidGetProcInfo(pid, &info); err != nil {
-		return contracts.RuntimeProcess{
-			State: contracts.ProcessStateUnknown,
-		}, err
+	rps, err := listAllRuntimeProcesses()
+	if err != nil {
+		return contracts.RuntimeProcess{}, err
 	}
 
-	result := contracts.RuntimeProcess{}
-
-	path, _ := fromPidGetProcPath(pid)
-	result.Executable = path
-
-	name, _ := fromPidGetProcName(pid)
-	result.ExecutableName = name
-
-	// result.Args
-	// result.WorkingDirectory
-	// result.Environment
-
-	result.ProcessID = pid
-	result.ParentProcessID = int(info.pbsd.pbi_ppid)
-	result.UserID = int(info.pbsd.pbi_uid)
-	result.GroupID = int(info.pbsd.pbi_gid)
-
-	switch info.pbsd.pbi_status {
-	case C.SIDL:
-		result.State = contracts.ProcessStateWaitingEvent
-	case C.SRUN:
-		result.State = contracts.ProcessStateRunning
-	case C.SSLEEP:
-		result.State = contracts.ProcessStateWaitingEvent
-	case C.SSTOP:
-		result.State = contracts.ProcessStateDead
-	case C.SZOMB:
-		result.State = contracts.ProcessStateObsolete
-	default:
-		result.State = contracts.ProcessStateUnknown
+	for _, rp := range rps {
+		if rp.ProcessID == pid {
+			return rp, nil
+		}
 	}
 
-	return result, nil
+	return contracts.RuntimeProcess{}, nil
 }
