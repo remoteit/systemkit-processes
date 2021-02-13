@@ -22,7 +22,7 @@ func TestAbs(t *testing.T) {
 
 	monitor := procMon.New()
 	monitor.SpawnWithTag(contracts.ProcessTemplate{
-		Executable: "/usr/local/bin/connectd",
+		Executable: "/usr/bin/connectd",
 		Args: []string{
 			"-s", "-mfg", "33280", "-ptf", "256", "-p", "bmljb2xhZUByZW1vdGUuaXQ=", "EA5AE177DCAB4A7329A853B84DF7689D6B8602EE", "80:00:00:00:01:0A:01:BA", "T30002", "2", "1.1.1.1", "0.0.0.0", "35", "0", "0",
 		},
