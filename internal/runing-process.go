@@ -125,7 +125,7 @@ func (thisRef *runingProcess) Start() error {
 		}()
 	}
 
-	thisRef.osCmd.SysProcAttr = procAttrs
+	// thisRef.osCmd.SysProcAttr = procAttrs
 
 	// start
 	logging.Debugf("%s: start %s", logID, helpers.AsJSONString(thisRef.processTemplate))
