@@ -98,6 +98,8 @@ func (thisRef *runingProcess) Start() error {
 		}
 		logging.Debugf("%s: read-STDOUT-SUCCESS for [%s]", logID, thisRef.processTemplate.Executable)
 
+		thisRef.osCmd.Process.Wait()
+
 		if thisRef.processTemplate.OnStopped != nil {
 			thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
 			thisRef.processTemplate.OnStopped = nil
@@ -206,8 +208,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			thisRef.osCmd.Process.Signal(syscall.SIGTERM)
 			time.Sleep(waitTimeout)
 
-			if thisRef.osCmd.ProcessState != nil && thisRef.osCmd.ProcessState.Exited() {
-				thisRef.osCmd.Process.Wait()
+			if !thisRef.IsRunning() {
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -219,8 +220,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			thisRef.osCmd.Process.Signal(syscall.SIGKILL)
 			time.Sleep(waitTimeout)
 
-			if thisRef.osCmd.ProcessState != nil && thisRef.osCmd.ProcessState.Exited() {
-				thisRef.osCmd.Process.Wait()
+			if !thisRef.IsRunning() {
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -232,8 +232,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			processKillHelper(thisRef.osCmd.Process.Pid)
 			time.Sleep(waitTimeout)
 
-			if thisRef.osCmd.ProcessState != nil && thisRef.osCmd.ProcessState.Exited() {
-				thisRef.osCmd.Process.Wait()
+			if !thisRef.IsRunning() {
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -245,8 +244,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 			err = thisRef.osCmd.Process.Kill()
 			time.Sleep(waitTimeout)
 
-			if thisRef.osCmd.ProcessState != nil && thisRef.osCmd.ProcessState.Exited() {
-				thisRef.osCmd.Process.Wait()
+			if !thisRef.IsRunning() {
 				thisRef.stoppedAt = time.Now()
 				logging.Debugf("%s: stop-SUCCESS [%s]", logID, thisRef.processTemplate.Executable)
 				return nil
@@ -272,7 +270,8 @@ func (thisRef runingProcess) IsRunning() bool {
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
 		rp.State != contracts.ProcessStateObsolete &&
-		rp.State != contracts.ProcessStateDead)
+		rp.State != contracts.ProcessStateDead &&
+		rp.State != contracts.ProcessStateUnknown)
 }
 
 // Details - return processTemplate about the process
