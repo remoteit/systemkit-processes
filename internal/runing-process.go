@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -94,13 +93,9 @@ func (thisRef *runingProcess) Start() error {
 		if err != nil {
 			logging.Warningf("%s: read-STDOUT-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
 		}
-		logging.Debugf("%s: read-STDOUT-SUCESS for [%s]", logID, thisRef.processTemplate.Executable)
+		logging.Debugf("%s: read-STDOUT-SUCCESS for [%s]", logID, thisRef.processTemplate.Executable)
 
-		if runtime.GOOS == "windows" {
-			thisRef.osCmd.Process.Release()
-		} else {
-			thisRef.osCmd.Process.Wait()
-		}
+		thisRef.osCmd.Process.Wait()
 
 		if thisRef.processTemplate.OnStopped != nil {
 			thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
@@ -153,9 +148,11 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 
 	if thisRef.stdOutPipe != nil {
 		thisRef.stdOutPipe.Close()
+		thisRef.stdOutPipe = nil
 	}
 	if thisRef.stdErrPipe != nil {
 		thisRef.stdErrPipe.Close()
+		thisRef.stdErrPipe = nil
 	}
 
 	defer func() {
@@ -243,7 +240,7 @@ func (thisRef *runingProcess) Stop(tag string, attempts int, waitTimeout time.Du
 }
 
 // IsRunning - tells if the process is running
-func (thisRef *runingProcess) IsRunning() bool {
+func (thisRef runingProcess) IsRunning() bool {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return false
 	}
@@ -257,12 +254,11 @@ func (thisRef *runingProcess) IsRunning() bool {
 
 	return (rp.State != contracts.ProcessStateNonExistent &&
 		rp.State != contracts.ProcessStateObsolete &&
-		rp.State != contracts.ProcessStateDead &&
-		rp.State != contracts.ProcessStateUnknown)
+		rp.State != contracts.ProcessStateDead)
 }
 
 // Details - return processTemplate about the process
-func (thisRef *runingProcess) Details() contracts.RuntimeProcess {
+func (thisRef runingProcess) Details() contracts.RuntimeProcess {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return contracts.RuntimeProcess{
 			State: contracts.ProcessStateNonExistent,
@@ -280,7 +276,7 @@ func (thisRef *runingProcess) Details() contracts.RuntimeProcess {
 }
 
 // ExitCode -
-func (thisRef *runingProcess) ExitCode() int {
+func (thisRef runingProcess) ExitCode() int {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil || thisRef.osCmd.ProcessState == nil {
 		return 0
 	}
@@ -289,7 +285,7 @@ func (thisRef *runingProcess) ExitCode() int {
 }
 
 // StartedAt - returns the time when the process was started
-func (thisRef *runingProcess) StartedAt() time.Time {
+func (thisRef runingProcess) StartedAt() time.Time {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return time.Unix(0, 0)
 	}
@@ -298,7 +294,7 @@ func (thisRef *runingProcess) StartedAt() time.Time {
 }
 
 // StoppedAt - returns the time when the process was stopped
-func (thisRef *runingProcess) StoppedAt() time.Time {
+func (thisRef runingProcess) StoppedAt() time.Time {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return time.Unix(0, 0)
 	}
@@ -306,7 +302,7 @@ func (thisRef *runingProcess) StoppedAt() time.Time {
 	return thisRef.stoppedAt
 }
 
-func (thisRef *runingProcess) processID() int {
+func (thisRef runingProcess) processID() int {
 	if thisRef.osCmd == nil || thisRef.osCmd.Process == nil {
 		return processDoesNotExist
 	}
