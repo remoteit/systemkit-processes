@@ -104,9 +104,11 @@ func (thisRef *runingProcess) Start() error {
 			thisRef.processTemplate.OnStoppedParams = nil
 		}
 
-		thisRef.Stop()
-
+		thisRef.processTemplate.StdoutReader = nil
+		thisRef.processTemplate.StdoutReaderParams = nil
 		thisRef.stdOutPipe = nil
+
+		thisRef.Stop("self", 1, 1*time.Second)
 	}()
 
 	// capture STDERR
@@ -125,6 +127,8 @@ func (thisRef *runingProcess) Start() error {
 			}
 			logging.Debugf("%s: read-STDERR-SUCCESS for [%s]", logID, thisRef.processTemplate.Executable)
 
+			thisRef.processTemplate.StderrReader = nil
+			thisRef.processTemplate.StderrReaderParams = nil
 			thisRef.stdErrPipe = nil
 		}()
 	}
