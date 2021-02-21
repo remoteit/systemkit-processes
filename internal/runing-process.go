@@ -84,34 +84,26 @@ func (thisRef *runingProcess) Start() error {
 	var err error
 
 	// capture STDOUT
-	thisRef.stdOutPipe, err = thisRef.osCmd.StdoutPipe()
-	if err != nil {
-		logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-		return err
-	}
-
-	go func() {
-		logging.Debugf("%s: read-STDOUT for [%s]", logID, thisRef.processTemplate.Executable)
-		err := readOutput(thisRef.stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
+	if thisRef.processTemplate.StdoutReader != nil {
+		thisRef.stdOutPipe, err = thisRef.osCmd.StdoutPipe()
 		if err != nil {
-			logging.Warningf("%s: read-STDOUT-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
-		}
-		logging.Debugf("%s: read-STDOUT-SUCCESS for [%s]", logID, thisRef.processTemplate.Executable)
-
-		thisRef.osCmd.Process.Wait()
-
-		if thisRef.processTemplate.OnStopped != nil {
-			thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
-			thisRef.processTemplate.OnStopped = nil
-			thisRef.processTemplate.OnStoppedParams = nil
+			logging.Errorf("%s: get-StdOut-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+			return err
 		}
 
-		thisRef.processTemplate.StdoutReader = nil
-		thisRef.processTemplate.StdoutReaderParams = nil
-		thisRef.stdOutPipe = nil
+		go func() {
+			logging.Debugf("%s: read-STDOUT for [%s]", logID, thisRef.processTemplate.Executable)
+			err := readOutput(thisRef.stdOutPipe, thisRef.processTemplate.StdoutReader, thisRef.processTemplate.StdoutReaderParams)
+			if err != nil {
+				logging.Warningf("%s: read-STDOUT-FAIL for [%s], [%s]", logID, thisRef.processTemplate.Executable, err.Error())
+			}
+			logging.Debugf("%s: read-STDOUT-SUCCESS for [%s]", logID, thisRef.processTemplate.Executable)
 
-		thisRef.Stop("self", 1, 1*time.Second)
-	}()
+			thisRef.processTemplate.StdoutReader = nil
+			thisRef.processTemplate.StdoutReaderParams = nil
+			thisRef.stdOutPipe = nil
+		}()
+	}
 
 	// capture STDERR
 	if thisRef.processTemplate.StderrReader != nil {
@@ -151,6 +143,15 @@ func (thisRef *runingProcess) Start() error {
 	}
 
 	thisRef.startedAt = time.Now()
+
+	// wait for process exit - either when it gets killed externally or by calling `.Stop()`
+	go func() {
+		thisRef.osCmd.Process.Wait()
+
+		if thisRef.processTemplate.OnStopped != nil {
+			thisRef.processTemplate.OnStopped(thisRef.processTemplate.OnStoppedParams)
+		}
+	}()
 
 	return nil
 }

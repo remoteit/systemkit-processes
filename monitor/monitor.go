@@ -32,10 +32,11 @@ func New() contracts.Monitor {
 // Spawn -
 func (thisRef *processMonitor) Spawn(processTemplate contracts.ProcessTemplate) (string, error) {
 	thisRef.procsSync.Lock()
-	defer thisRef.procsSync.Unlock()
 
 	tag := fmt.Sprintf("gen-tag-%d", thisRef.procTagIndex)
 	thisRef.procTagIndex++
+
+	thisRef.procsSync.Unlock()
 
 	return tag, thisRef.SpawnWithTag(processTemplate, tag)
 }
